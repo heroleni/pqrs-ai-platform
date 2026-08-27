@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sitio de prueba — Widget PQRS</title>
+<style>
+  :root { --ink:#14181D; --muted:#5A646F; --line:#E3E7EA; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         color: var(--ink); background:#FBFBFA; line-height:1.6; }
+  header { border-bottom:1px solid var(--line); padding:18px 28px; display:flex; gap:14px; align-items:center; }
+  header b { font-size:15px; letter-spacing:.3px; }
+  header span { font-size:13px; color:var(--muted); }
+  main { max-width: 720px; margin: 0 auto; padding: 64px 28px 120px; }
+  h1 { font-size: 34px; line-height:1.2; margin:0 0 14px; letter-spacing:-.5px; }
+  p.lead { font-size:17px; color:var(--muted); margin:0 0 36px; }
+  .note { border:1px solid var(--line); border-radius:12px; padding:18px 20px; background:#fff; }
+  .note h2 { margin:0 0 8px; font-size:14px; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); }
+  code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size:13px; background:#F2F3F2; padding:2px 5px; border-radius:4px; }
+  ul { padding-left:20px; }
+</style>
+</head>
+<body>
+<header><b>Aguas del Valle S.A.S.</b><span>sitio de prueba del widget</span></header>
+<main>
+  <h1>Esta página existe solo para probar el widget.</h1>
+  <p class="lead">Abre el botón de la esquina inferior derecha. La API está simulada en esta página,
+  así que el flujo completo funciona sin levantar el backend.</p>
+
+  <div class="note">
+    <h2>Consultas que la base de conocimiento simulada sí responde</h2>
+    <ul>
+      <li>“¿Cómo cambio la fecha de pago de mi factura?”</li>
+      <li>“¿Cuál es el horario de atención?”</li>
+      <li>“¿Cómo reporto una fuga?”</li>
+    </ul>
+    <p style="margin:12px 0 0; color:var(--muted); font-size:14px;">
+      Cualquier otra pregunta cae por debajo del umbral de similitud y salta directo al formulario,
+      igual que hará el backend real. Para apuntar a tu API, cambia <code>data-api</code> y borra el bloque de simulación.
+    </p>
+  </div>
+</main>
+
+<!-- ================== SIMULACIÓN DE LA API (borrar en producción) ================== -->
+<script>
+(function () {
+  var KB = [
+    { k: ['factura','pago','fecha','pagar','recibo'],
+      a: 'Puedes cambiar tu fecha de pago desde el portal, en Mi cuenta → Facturación → Fecha de corte. El cambio aplica al siguiente ciclo y solo puede hacerse una vez cada seis meses.',
+      s: ['Cambio de fecha de corte', 'Ciclos de facturación'] },
+    { k: ['horario','atención','atencion','abren','oficina'],
+      a: 'Atendemos de lunes a viernes de 7:00 a.m. a 5:00 p.m. y sábados de 8:00 a.m. a 12:00 m. La línea de emergencias opera 24 horas.',
+      s: ['Horarios y canales'] },
+    { k: ['fuga','daño','dano','escape','tubería','tuberia'],
+      a: 'Reporta la fuga por la línea 018000-123456 o desde este widget. Si el agua compromete la vía pública, marcamos el caso como prioridad alta y despachamos cuadrilla en menos de 4 horas.',
+      s: ['Protocolo de fugas', 'Tiempos de respuesta'] }
+  ];
+  var n = 4820;
+  var real = window.fetch;
+
+  window.fetch = function (url, opts) {
+    var u = String(url);
+    if (u.indexOf('/api/v1/widget/') === -1) return real.apply(this, arguments);
+
+    var body = JSON.parse((opts && opts.body) || '{}');
+    var out;
+
+    if (u.indexOf('rag-search') > -1) {
+      var q = (body.query || '').toLowerCase();
+      var hit = KB.find(function (e) { return e.k.some(function (w) { return q.indexOf(w) > -1; }); });
+      out = hit
+        ? { interactionId: 'int_' + Date.now(), answered: true, confidence: 0.87, answer: hit.a, sources: hit.s }
+        : { interactionId: 'int_' + Date.now(), answered: false, confidence: 0.31 };
+    } else if (u.indexOf('rag-feedback') > -1) {
+      out = {};
+    } else {
+      out = { ticketNumber: 'PQRS-2026-' + (++n), type: 'Queja', priority: 'Alta', status: 'Pendiente' };
+    }
+
+    return new Promise(function (res) {
+      setTimeout(function () {
+        res({ ok: true, status: 200, json: function () { return Promise.resolve(out); } });
+      }, 900);
+    });
+  };
+})();
+</script>
+<!-- ============================================================================== -->
+
+<script src="./pqrs-widget.js"
+        data-tenant="aguas-del-valle"
+        data-api="http://localhost:8080"
+        data-title="Soporte"
+        data-subtitle="Respondemos al instante"
+        data-accent="#0E5C55"></script>
+</body>
+</html>
