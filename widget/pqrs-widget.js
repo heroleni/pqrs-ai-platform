@@ -1,13 +1,15 @@
 /*!
  * pqrs-widget.js — Widget incrustable de PQRS con auto-atención por IA.
  * Vanilla JS, sin dependencias. Aislado con Shadow DOM.
+ * Sistema visual: Ethereal SaaS (morado profundo + teal, Inter).
  *
  * Uso:
  *   <script src="https://cdn.tu-saas.com/pqrs-widget.js"
  *           data-tenant="ID_EMPRESA"
  *           data-api="https://api.tu-saas.com"
- *           data-title="Soporte"
- *           data-accent="#0E5C55"></script>
+ *           data-title="PQRS Assistant"
+ *           data-brand="#321E48"
+ *           data-accent="#65DCD5"></script>
  */
 (function () {
   'use strict';
@@ -16,18 +18,19 @@
    * 1. Configuración leída del <script>
    * ------------------------------------------------------------------ */
   var host =
-    document.currentScript ||
-    (function () {
-      var all = document.getElementsByTagName('script');
-      return all[all.length - 1];
-    })();
+      document.currentScript ||
+      (function () {
+        var all = document.getElementsByTagName('script');
+        return all[all.length - 1];
+      })();
 
   var CFG = {
     tenant: host.getAttribute('data-tenant') || '',
-    api: (host.getAttribute('data-api') || 'http://localhost:8080').replace(/\/+$/, ''),
-    title: host.getAttribute('data-title') || 'Soporte',
-    subtitle: host.getAttribute('data-subtitle') || 'Respondemos al instante',
-    accent: host.getAttribute('data-accent') || '#0E5C55',
+    api: (host.getAttribute('data-api') || 'http://localhost:8081').replace(/\/+$/, ''),
+    title: host.getAttribute('data-title') || 'PQRS Assistant',
+    subtitle: host.getAttribute('data-subtitle') || 'En línea',
+    brand: host.getAttribute('data-brand') || '#321E48',   // morado: encabezado y burbuja del usuario
+    accent: host.getAttribute('data-accent') || '#65DCD5', // teal: acciones y estados activos
     position: host.getAttribute('data-position') || 'right'
   };
 
@@ -45,7 +48,7 @@
     open: false,
     phase: 'chat', // chat | form | done
     busy: false,
-    interactionId: null, // id de la última búsqueda RAG
+    interactionId: null,
     lastQuery: '',
     ticket: null
   };
@@ -57,169 +60,161 @@
   };
 
   /* ------------------------------------------------------------------ *
-   * 3. Estilos (viven dentro del Shadow DOM, no tocan la página anfitriona)
+   * 3. Estilos — tokens del sistema Ethereal SaaS
    * ------------------------------------------------------------------ */
   var CSS = [
+    "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');",
+
     ':host { all: initial; }',
     '*, *::before, *::after { box-sizing: border-box; }',
 
     '.root {',
-    '  --accent: ' + CFG.accent + ';',
-    '  --accent-soft: color-mix(in srgb, var(--accent) 10%, #ffffff);',
-    '  --accent-line: color-mix(in srgb, var(--accent) 22%, #ffffff);',
-    '  --ink: #14181D;',
-    '  --ink-2: #5A646F;',
-    '  --line: #E3E7EA;',
-    '  --surface: #FFFFFF;',
-    '  --canvas: #F7F8F8;',
-    '  --danger: #A6301F;',
-    '  --radius: 14px;',
-    '  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;',
-    '  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;',
-    '  position: fixed; bottom: 20px; z-index: 2147483000;',
-    '  font-family: var(--sans); color: var(--ink); line-height: 1.5;',
+    '  --brand: ' + CFG.brand + ';',        /* #321E48 morado profundo */
+    '  --accent: ' + CFG.accent + ';',      /* #65DCD5 teal, color de acción */
+    '  --slate: #43637E;',                  /* azul pizarra: bordes y texto de apoyo */
+    '  --mint: #D9FFF4;',                   /* fondo de burbujas del asistente */
+    '  --mint-deep: #CAF0E5;',
+    '  --ink: #00201B;',
+    '  --ink-soft: #4A454D;',
+    '  --line: rgba(67, 99, 126, .15);',    /* slate al 15%, en vez de sombras pesadas */
+    '  --error: #BA1A1A;',
+    '  --error-bg: #FFDAD6;',
+    '  --r-sm: 8px; --r-md: 12px; --r-lg: 16px;',
+    '  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;',
+    '  position: fixed; bottom: 24px; z-index: 2147483000;',
+    '  font-family: var(--font); color: var(--ink); line-height: 1.5;',
     '  -webkit-font-smoothing: antialiased;',
     '}',
-    '.root[data-position="right"] { right: 20px; }',
-    '.root[data-position="left"]  { left: 20px; }',
+    '.root[data-position="right"] { right: 24px; }',
+    '.root[data-position="left"]  { left: 24px; }',
 
-    /* --- Botón flotante --- */
+    /* --- Botón flotante: teal con icono morado --- */
     '.launcher {',
-    '  display: flex; align-items: center; gap: 9px;',
-    '  height: 52px; padding: 0 20px 0 17px; border: 0; border-radius: 26px;',
-    '  background: var(--accent); color: #fff; cursor: pointer;',
-    '  font: 600 15px/1 var(--sans); letter-spacing: .1px;',
-    '  box-shadow: 0 6px 20px rgba(20,24,29,.20);',
-    '  transition: transform .18s ease, box-shadow .18s ease;',
+    '  display: grid; place-items: center; width: 56px; height: 56px;',
+    '  border: 0; border-radius: 9999px; cursor: pointer;',
+    '  background: var(--accent); color: var(--brand);',
+    '  box-shadow: 0 4px 20px rgba(50,30,72,.18);',
+    '  transition: transform .2s ease, box-shadow .2s ease;',
     '}',
-    '.launcher:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(20,24,29,.26); }',
-    '.launcher:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }',
-    '.launcher svg { width: 20px; height: 20px; }',
+    '.launcher:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(50,30,72,.26); }',
+    '.launcher:focus-visible { outline: 3px solid var(--brand); outline-offset: 3px; }',
+    '.launcher svg { width: 24px; height: 24px; }',
     '.root[data-open="true"] .launcher { display: none; }',
 
-    /* --- Panel --- */
+    /* --- Panel flotante con efecto de vidrio --- */
     '.panel {',
     '  display: none; flex-direction: column;',
-    '  width: 384px; height: 574px; max-height: calc(100vh - 40px);',
-    '  background: var(--surface); border: 1px solid var(--line);',
-    '  border-radius: var(--radius); overflow: hidden;',
-    '  box-shadow: 0 24px 60px rgba(20,24,29,.22);',
+    '  width: 384px; height: 588px; max-height: calc(100vh - 48px);',
+    '  border-radius: var(--r-lg); overflow: hidden;',
+    '  background: rgba(255,255,255,.82);',
+    '  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);',
+    '  border: 1px solid var(--line);',
+    '  box-shadow: 0 4px 20px rgba(50,30,72,.08);',
     '}',
-    '.root[data-open="true"] .panel { display: flex; animation: rise .22s cubic-bezier(.2,.8,.3,1); }',
-    '@keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }',
+    '.root[data-open="true"] .panel { display: flex; animation: rise .24s cubic-bezier(.2,.8,.3,1); }',
+    '@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }',
 
-    /* --- Encabezado --- */
-    '.head {',
-    '  display: flex; align-items: center; gap: 12px;',
-    '  padding: 15px 14px 15px 18px; background: var(--accent); color: #fff;',
-    '}',
-    '.head h1 { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: .1px; }',
-    '.head p  { margin: 2px 0 0; font-size: 12px; opacity: .82; }',
+    /* --- Encabezado morado --- */
+    '.head { display: flex; align-items: center; gap: 12px; padding: 18px 16px 18px 18px; background: var(--brand); color: #fff; }',
+    '.avatar { width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: 9999px; background: rgba(255,255,255,.14); }',
+    '.avatar svg { width: 18px; height: 18px; }',
     '.head .grow { flex: 1; min-width: 0; }',
-    '.iconbtn {',
-    '  width: 32px; height: 32px; display: grid; place-items: center;',
-    '  border: 0; border-radius: 8px; background: rgba(255,255,255,.14);',
-    '  color: #fff; cursor: pointer;',
-    '}',
-    '.iconbtn:hover { background: rgba(255,255,255,.26); }',
-    '.iconbtn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }',
+    '.head h1 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -.01em; }',
+    '.head .sub { display: flex; align-items: center; gap: 6px; margin: 3px 0 0; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--accent); }',
+    '.head .sub::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }',
+    '.iconbtn { width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: var(--r-sm); background: transparent; color: #fff; cursor: pointer; }',
+    '.iconbtn:hover { background: rgba(255,255,255,.16); }',
+    '.iconbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }',
     '.iconbtn svg { width: 16px; height: 16px; }',
 
-    /* Barra de fase: dice en qué paso va la persona */
-    '.steps { display: flex; gap: 2px; background: var(--accent); padding: 0 18px 12px; }',
-    '.steps span { flex: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,.28); }',
-    '.steps span[data-on="1"] { background: #fff; }',
+    /* Pasos como puntos teal, según el sistema */
+    '.steps { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; background: var(--brand); }',
+    '.steps i { width: 7px; height: 7px; border-radius: 50%; background: rgba(101,220,213,.28); transition: background .2s, transform .2s; }',
+    '.steps i[data-on="1"] { background: var(--accent); transform: scale(1.15); }',
 
     /* --- Conversación --- */
-    '.stream {',
-    '  flex: 1; overflow-y: auto; padding: 18px 16px 8px;',
-    '  background: var(--canvas); scroll-behavior: smooth;',
-    '}',
-    '.msg { max-width: 84%; margin-bottom: 12px; font-size: 14px; }',
-    '.msg .bubble { padding: 10px 13px; border-radius: 12px; white-space: pre-wrap; word-wrap: break-word; }',
-    '.msg[data-from="bot"] .bubble { background: var(--surface); border: 1px solid var(--line); border-bottom-left-radius: 4px; }',
-    '.msg[data-from="me"] { margin-left: auto; }',
-    '.msg[data-from="me"] .bubble { background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }',
-    '.msg[data-tone="warn"] .bubble { background: #FDF3F1; border-color: #F0D2CB; color: var(--danger); }',
+    '.stream { flex: 1; overflow-y: auto; padding: 20px 16px 10px; background: transparent; scroll-behavior: smooth; }',
+    '.msg { display: flex; gap: 8px; margin-bottom: 14px; }',
+    '.msg .bubble { max-width: 78%; padding: 11px 14px; border-radius: var(--r-md); font-size: 14px; white-space: pre-wrap; word-wrap: break-word; }',
+    '.msg[data-from="bot"] .bubble { background: var(--mint); color: var(--ink); border-top-left-radius: 4px; }',
+    '.msg[data-from="bot"]::before { content: ""; width: 26px; height: 26px; flex: none; border-radius: 9999px; background: var(--brand) url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%2365DCD5\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Crect x=\'4\' y=\'8\' width=\'16\' height=\'12\' rx=\'3\'/%3E%3Cpath d=\'M12 4v4M9 14h.01M15 14h.01\'/%3E%3C/svg%3E") center/15px no-repeat; }',
+    '.msg[data-from="me"] { justify-content: flex-end; }',
+    '.msg[data-from="me"] .bubble { background: var(--brand); color: #fff; border-top-right-radius: 4px; }',
+    '.msg[data-tone="warn"] .bubble { background: var(--error-bg); color: #93000A; }',
 
-    '.src { margin: 6px 0 0; font: 500 11px/1.4 var(--mono); color: var(--ink-2); letter-spacing: .2px; }',
+    '.src { margin: 8px 0 0; font-size: 11px; font-weight: 600; letter-spacing: .05em; color: var(--slate); }',
 
-    /* Confirmación sí/no */
-    '.confirm { display: flex; gap: 8px; margin: 2px 0 14px; }',
-    '.confirm button {',
-    '  flex: 1; padding: 9px 12px; border-radius: 9px; cursor: pointer;',
-    '  font: 600 13px var(--sans); background: var(--surface);',
-    '  border: 1px solid var(--line); color: var(--ink);',
-    '}',
-    '.confirm button:hover { border-color: var(--accent); color: var(--accent); }',
-    '.confirm button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }',
+    /* Confirmación sí/no: primaria teal, secundaria fantasma */
+    '.confirm { display: flex; flex-direction: column; gap: 8px; margin: 0 0 14px 34px; }',
+    '.confirm button { padding: 10px 14px; border-radius: var(--r-sm); cursor: pointer; font: 600 13px var(--font); text-align: left; }',
+    '.confirm button[data-a="si"] { background: var(--accent); color: var(--brand); border: 0; }',
+    '.confirm button[data-a="no"] { background: transparent; color: var(--slate); border: 1px solid var(--line); }',
+    '.confirm button:hover { filter: brightness(.96); }',
+    '.confirm button[data-a="no"]:hover { border-color: var(--slate); color: var(--brand); }',
+    '.confirm button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }',
 
     /* Escribiendo… */
-    '.dots { display: inline-flex; gap: 4px; padding: 3px 0; }',
-    '.dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-2); opacity: .45; animation: blink 1.1s infinite; }',
+    '.dots { display: inline-flex; gap: 4px; padding: 4px 0; }',
+    '.dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--slate); opacity: .4; animation: blink 1.1s infinite; }',
     '.dots i:nth-child(2) { animation-delay: .18s; } .dots i:nth-child(3) { animation-delay: .36s; }',
     '@keyframes blink { 0%,60%,100% { opacity: .25; } 30% { opacity: .9; } }',
 
     /* --- Barra de escritura --- */
-    '.composer { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--line); background: var(--surface); }',
+    '.composer { display: flex; gap: 8px; padding: 14px; border-top: 1px solid var(--line); background: rgba(255,255,255,.6); }',
     '.composer textarea {',
-    '  flex: 1; resize: none; height: 42px; max-height: 110px; padding: 11px 12px;',
-    '  border: 1px solid var(--line); border-radius: 10px;',
-    '  font: 400 14px/1.35 var(--sans); color: var(--ink); background: var(--surface);',
+    '  flex: 1; resize: none; height: 44px; max-height: 112px; padding: 12px 14px;',
+    '  border: 1px solid var(--line); border-radius: var(--r-md);',
+    '  font: 400 14px/1.35 var(--font); color: var(--ink); background: #fff;',
     '}',
-    '.composer textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }',
-    '.send {',
-    '  width: 42px; height: 42px; flex: none; display: grid; place-items: center;',
-    '  border: 0; border-radius: 10px; background: var(--accent); color: #fff; cursor: pointer;',
-    '}',
-    '.send:disabled { opacity: .4; cursor: not-allowed; }',
-    '.send:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }',
+    '.composer textarea::placeholder { color: var(--slate); opacity: .7; }',
+    '.composer textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(101,220,213,.25); }',
+    '.send { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 0; border-radius: var(--r-md); background: var(--accent); color: var(--brand); cursor: pointer; }',
+    '.send:disabled { opacity: .45; cursor: not-allowed; }',
+    '.send:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }',
     '.send svg { width: 18px; height: 18px; }',
 
     /* --- Formulario --- */
-    '.form { flex: 1; overflow-y: auto; padding: 18px 18px 20px; background: var(--surface); }',
-    '.form .lead { margin: 0 0 16px; font-size: 13px; color: var(--ink-2); }',
-    '.field { margin-bottom: 13px; }',
-    '.field label { display: block; margin-bottom: 5px; font: 600 11px var(--mono); letter-spacing: .6px; text-transform: uppercase; color: var(--ink-2); }',
+    '.form { flex: 1; overflow-y: auto; padding: 20px 18px 22px; background: rgba(255,255,255,.55); }',
+    '.form .lead { margin: 0 0 18px; font-size: 14px; color: var(--ink-soft); }',
+    '.field { margin-bottom: 14px; }',
+    '.field label { display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--slate); }',
     '.field input, .field textarea {',
-    '  width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px;',
-    '  font: 400 14px/1.4 var(--sans); color: var(--ink); background: var(--surface);',
+    '  width: 100%; padding: 11px 14px; border: 1px solid var(--slate); border-radius: var(--r-md);',
+    '  font: 400 14px/1.4 var(--font); color: var(--ink); background: #fff;',
     '}',
-    '.field textarea { min-height: 96px; resize: vertical; }',
-    '.field input:focus, .field textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }',
-    '.field[data-invalid="1"] input, .field[data-invalid="1"] textarea { border-color: var(--danger); }',
-    '.hint { margin: 5px 0 0; font-size: 12px; color: var(--danger); min-height: 0; }',
-    '.submit {',
-    '  width: 100%; margin-top: 6px; padding: 13px; border: 0; border-radius: 10px;',
-    '  background: var(--accent); color: #fff; cursor: pointer; font: 650 14px var(--sans);',
-    '}',
+    '.field textarea { min-height: 100px; resize: vertical; }',
+    '.field input:focus, .field textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(101,220,213,.25); }',
+    '.field[data-invalid="1"] input, .field[data-invalid="1"] textarea { border-color: var(--error); }',
+    '.hint { margin: 6px 0 0; font-size: 12px; color: var(--error); }',
+    '.submit { width: 100%; margin-top: 8px; padding: 14px; border: 0; border-radius: var(--r-sm); background: var(--accent); color: var(--brand); cursor: pointer; font: 600 14px var(--font); }',
     '.submit:disabled { opacity: .55; cursor: progress; }',
-    '.submit:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }',
-    '.back { margin-top: 10px; width: 100%; padding: 9px; background: none; border: 0; cursor: pointer; font: 500 13px var(--sans); color: var(--ink-2); }',
-    '.back:hover { color: var(--accent); }',
-    '.formerror { margin: 0 0 14px; padding: 10px 12px; border-radius: 9px; background: #FDF3F1; border: 1px solid #F0D2CB; color: var(--danger); font-size: 13px; }',
+    '.submit:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }',
+    '.back { margin-top: 10px; width: 100%; padding: 10px; background: none; border: 0; cursor: pointer; font: 500 13px var(--font); color: var(--slate); }',
+    '.back:hover { color: var(--brand); }',
+    '.formerror { margin: 0 0 16px; padding: 11px 14px; border-radius: var(--r-sm); background: var(--error-bg); color: #93000A; font-size: 13px; }',
 
-    /* --- Comprobante de radicación (elemento distintivo) --- */
-    '.done { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 24px; background: var(--canvas); }',
-    '.stub { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }',
-    '.stub header { padding: 16px 18px 14px; border-bottom: 1px dashed var(--line); }',
-    '.stub header b { display: block; font-size: 15px; }',
-    '.stub header span { display: block; margin-top: 3px; font-size: 13px; color: var(--ink-2); }',
-    '.stub .num { padding: 16px 18px; text-align: center; border-bottom: 1px dashed var(--line); }',
-    '.stub .num small { display: block; font: 600 10px var(--mono); letter-spacing: 1.1px; text-transform: uppercase; color: var(--ink-2); }',
-    '.stub .num strong { display: block; margin-top: 6px; font: 700 22px var(--mono); letter-spacing: 1px; color: var(--accent); }',
-    '.stub dl { display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; margin: 0; padding: 14px 18px 16px; font-size: 13px; }',
-    '.stub dt { font: 600 11px var(--mono); letter-spacing: .5px; text-transform: uppercase; color: var(--ink-2); align-self: center; }',
+    /* --- Comprobante de radicación --- */
+    '.done { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 24px; }',
+    '.stub { background: #fff; border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; box-shadow: 0 4px 20px rgba(50,30,72,.08); }',
+    '.stub header { padding: 18px 20px 16px; background: var(--brand); color: #fff; }',
+    '.stub header b { display: block; font-size: 16px; font-weight: 600; }',
+    '.stub header span { display: block; margin-top: 4px; font-size: 13px; opacity: .78; }',
+    '.stub .num { padding: 18px 20px; text-align: center; border-bottom: 1px solid var(--line); background: var(--mint); }',
+    '.stub .num small { display: block; font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--slate); }',
+    '.stub .num strong { display: block; margin-top: 8px; font-size: 24px; font-weight: 700; letter-spacing: .04em; color: var(--brand); }',
+    '.stub dl { display: grid; grid-template-columns: auto 1fr; gap: 10px 16px; margin: 0; padding: 16px 20px 18px; font-size: 14px; }',
+    '.stub dt { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--slate); align-self: center; }',
     '.stub dd { margin: 0; text-align: right; font-weight: 600; }',
-    '.done .again { margin-top: 16px; width: 100%; padding: 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); cursor: pointer; font: 600 13px var(--sans); color: var(--ink); }',
-    '.done .again:hover { border-color: var(--accent); color: var(--accent); }',
+    '.done .again { margin-top: 18px; width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: var(--r-sm); background: transparent; cursor: pointer; font: 600 13px var(--font); color: var(--slate); }',
+    '.done .again:hover { border-color: var(--slate); color: var(--brand); }',
 
+    '[hidden] { display: none !important; }',
     '.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }',
 
     /* --- Responsive --- */
     '@media (max-width: 480px) {',
-    '  .root { bottom: 12px; left: 12px; right: 12px; }',
-    '  .panel { width: auto; height: calc(100vh - 24px); }',
+    '  .root { bottom: 16px; left: 16px; right: 16px; }',
+    '  .panel { width: auto; height: calc(100vh - 32px); }',
     '}',
     '@media (prefers-reduced-motion: reduce) {',
     '  .root *, .root *::before { animation: none !important; transition: none !important; }',
@@ -231,58 +226,66 @@
    * ------------------------------------------------------------------ */
   var ICON = {
     chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.1A8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z"/></svg>',
+    bot: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 4v4M9 14h.01M15 14h.01"/></svg>',
     close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>',
     send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4 20-7z"/></svg>'
   };
 
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
   var HTML =
-    '<div class="root" data-position="' + CFG.position + '" data-open="false">' +
-      '<button class="launcher" type="button" part="launcher" aria-haspopup="dialog">' +
-        ICON.chat + '<span>' + esc(CFG.title) + '</span>' +
+      '<div class="root" data-position="' + CFG.position + '" data-open="false">' +
+      '<button class="launcher" type="button" aria-label="Abrir ' + esc(CFG.title) + '" aria-haspopup="dialog">' +
+      ICON.chat +
       '</button>' +
 
       '<section class="panel" role="dialog" aria-modal="false" aria-label="' + esc(CFG.title) + '">' +
-        '<div class="head">' +
-          '<div class="grow"><h1>' + esc(CFG.title) + '</h1><p class="sub">' + esc(CFG.subtitle) + '</p></div>' +
-          '<button class="iconbtn js-close" type="button" aria-label="Cerrar">' + ICON.close + '</button>' +
-        '</div>' +
-        '<div class="steps" aria-hidden="true"><span data-on="1"></span><span></span></div>' +
+      '<div class="head">' +
+      '<span class="avatar" aria-hidden="true">' + ICON.bot + '</span>' +
+      '<div class="grow"><h1>' + esc(CFG.title) + '</h1><p class="sub">' + esc(CFG.subtitle) + '</p></div>' +
+      '<button class="iconbtn js-close" type="button" aria-label="Cerrar">' + ICON.close + '</button>' +
+      '</div>' +
+      '<div class="steps" aria-hidden="true"><i data-on="1"></i><i></i></div>' +
 
-        /* Fase 1 — chat RAG */
-        '<div class="stream js-stream" role="log" aria-live="polite"></div>' +
-        '<div class="composer js-composer">' +
-          '<label class="sr" for="pqrs-q">Escribe tu consulta</label>' +
-          '<textarea id="pqrs-q" class="js-input" rows="1" placeholder="Cuéntanos tu consulta…"></textarea>' +
-          '<button class="send js-send" type="button" aria-label="Enviar consulta">' + ICON.send + '</button>' +
-        '</div>' +
+      /* Fase 1 — chat RAG */
+      '<div class="stream js-stream" role="log" aria-live="polite"></div>' +
+      '<div class="composer js-composer">' +
+      '<label class="sr" for="pqrs-q">Escribe tu consulta</label>' +
+      '<textarea id="pqrs-q" class="js-input" rows="1" placeholder="Escribe tu mensaje…"></textarea>' +
+      '<button class="send js-send" type="button" aria-label="Enviar consulta">' + ICON.send + '</button>' +
+      '</div>' +
 
-        /* Fase 2 — formulario de radicación */
-        '<div class="form js-form" hidden>' +
-          '<p class="lead">Radica tu solicitud y te damos un número de seguimiento. Un agente la revisará.</p>' +
-          '<div class="formerror js-formerror" hidden></div>' +
-          '<div class="field" data-f="name"><label for="pqrs-name">Nombre</label><input id="pqrs-name" autocomplete="name"><p class="hint"></p></div>' +
-          '<div class="field" data-f="email"><label for="pqrs-email">Correo</label><input id="pqrs-email" type="email" autocomplete="email"><p class="hint"></p></div>' +
-          '<div class="field" data-f="subject"><label for="pqrs-subject">Asunto</label><input id="pqrs-subject"><p class="hint"></p></div>' +
-          '<div class="field" data-f="description"><label for="pqrs-desc">Descripción</label><textarea id="pqrs-desc"></textarea><p class="hint"></p></div>' +
-          '<button class="submit js-submit" type="button">Radicar solicitud</button>' +
-          '<button class="back js-back" type="button">Volver al chat</button>' +
-        '</div>' +
+      /* Fase 2 — formulario de radicación */
+      '<div class="form js-form" hidden>' +
+      '<p class="lead">Radica tu solicitud y te damos un número de seguimiento. Un agente la revisará.</p>' +
+      '<div class="formerror js-formerror" hidden></div>' +
+      '<div class="field" data-f="name"><label for="pqrs-name">Nombre</label><input id="pqrs-name" autocomplete="name"><p class="hint"></p></div>' +
+      '<div class="field" data-f="email"><label for="pqrs-email">Correo</label><input id="pqrs-email" type="email" autocomplete="email"><p class="hint"></p></div>' +
+      '<div class="field" data-f="subject"><label for="pqrs-subject">Asunto</label><input id="pqrs-subject"><p class="hint"></p></div>' +
+      '<div class="field" data-f="description"><label for="pqrs-desc">Descripción</label><textarea id="pqrs-desc"></textarea><p class="hint"></p></div>' +
+      '<button class="submit js-submit" type="button">Radicar solicitud</button>' +
+      '<button class="back js-back" type="button">Volver al chat</button>' +
+      '</div>' +
 
-        /* Fase 3 — comprobante */
-        '<div class="done js-done" hidden>' +
-          '<div class="stub">' +
-            '<header><b>Solicitud radicada</b><span>Te escribiremos al correo registrado.</span></header>' +
-            '<div class="num"><small>Número de radicado</small><strong class="js-radicado">—</strong></div>' +
-            '<dl>' +
-              '<dt>Tipo</dt><dd class="js-tipo">—</dd>' +
-              '<dt>Prioridad</dt><dd class="js-prioridad">—</dd>' +
-              '<dt>Estado</dt><dd>Pendiente</dd>' +
-            '</dl>' +
-          '</div>' +
-          '<button class="again js-again" type="button">Hacer otra consulta</button>' +
-        '</div>' +
+      /* Fase 3 — comprobante */
+      '<div class="done js-done" hidden>' +
+      '<div class="stub">' +
+      '<header><b>Solicitud radicada</b><span>Te escribiremos al correo registrado.</span></header>' +
+      '<div class="num"><small>Número de radicado</small><strong class="js-radicado">—</strong></div>' +
+      '<dl>' +
+      '<dt>Tipo</dt><dd class="js-tipo">—</dd>' +
+      '<dt>Prioridad</dt><dd class="js-prioridad">—</dd>' +
+      '<dt>Estado</dt><dd>Pendiente</dd>' +
+      '</dl>' +
+      '</div>' +
+      '<button class="again js-again" type="button">Hacer otra consulta</button>' +
+      '</div>' +
       '</section>' +
-    '</div>';
+      '</div>';
 
   /* ------------------------------------------------------------------ *
    * 5. Montaje
@@ -311,16 +314,11 @@
   var composer = $('.js-composer');
   var formEl = $('.js-form');
   var doneEl = $('.js-done');
-  var steps = shadow.querySelectorAll('.steps span');
+  var steps = shadow.querySelectorAll('.steps i');
 
   /* ------------------------------------------------------------------ *
    * 6. Utilidades
    * ------------------------------------------------------------------ */
-  function esc(s) {
-    return String(s).replace(/[&<>"']/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
-    });
-  }
   function scrollEnd() { stream.scrollTop = stream.scrollHeight; }
 
   function say(from, text, tone) {
@@ -348,13 +346,13 @@
     var box = document.createElement('div');
     box.className = 'confirm';
     box.innerHTML =
-      '<button type="button" data-a="si">Sí, resolvió mi duda</button>' +
-      '<button type="button" data-a="no">No, quiero radicar</button>';
+        '<button type="button" data-a="si">Sí, resolvió mi duda</button>' +
+        '<button type="button" data-a="no">No, quiero radicar una PQRS</button>';
     box.addEventListener('click', function (e) {
       var b = e.target.closest('button');
       if (!b) return;
       box.remove();
-      say('me', b.getAttribute('data-a') === 'si' ? 'Sí, resolvió mi duda' : 'No, quiero radicar');
+      say('me', b.getAttribute('data-a') === 'si' ? 'Sí, resolvió mi duda' : 'No, quiero radicar una PQRS');
       (b.getAttribute('data-a') === 'si' ? onYes : onNo)();
     });
     stream.appendChild(box);
@@ -381,8 +379,8 @@
     doneEl.hidden = phase !== 'done';
     steps[1].setAttribute('data-on', chat ? '0' : '1');
     $('.sub').textContent =
-      phase === 'form' ? 'Paso 2 de 2 · Radicación' :
-      phase === 'done' ? 'Solicitud registrada' : CFG.subtitle;
+        phase === 'form' ? 'Paso 2 de 2' :
+            phase === 'done' ? 'Registrada' : CFG.subtitle;
   }
 
   /* ------------------------------------------------------------------ *
@@ -390,7 +388,7 @@
    * ------------------------------------------------------------------ */
   function greet() {
     stream.innerHTML = '';
-    say('bot', 'Hola. Pregúntame lo que necesites: si ya tenemos la respuesta, te la doy aquí mismo. Si no, radicamos tu PQRS.');
+    say('bot', 'Hola, soy el asistente. Pregúntame lo que necesites: si ya tenemos la respuesta, te la doy aquí mismo. Si no, radicamos tu PQRS.');
   }
 
   function ask() {
@@ -399,42 +397,42 @@
 
     say('me', q);
     input.value = '';
-    input.style.height = '42px';
+    input.style.height = '44px';
     S.lastQuery = q;
     S.busy = true;
     sendBtn.disabled = true;
     var t = typing();
 
     api(ENDPOINTS.ragSearch, { query: q })
-      .then(function (res) {
-        t.remove();
-        S.interactionId = res.interactionId || null;
+        .then(function (res) {
+          t.remove();
+          S.interactionId = res.interactionId || null;
 
-        if (res.answered && res.answer) {
-          say('bot', res.answer);
-          if (res.sources && res.sources.length) {
-            var s = document.createElement('p');
-            s.className = 'src';
-            s.textContent = 'Basado en: ' + res.sources.slice(0, 3).join(' · ');
-            stream.lastChild.appendChild(s);
+          if (res.answered && res.answer) {
+            var m = say('bot', res.answer);
+            if (res.sources && res.sources.length) {
+              var s = document.createElement('p');
+              s.className = 'src';
+              s.textContent = 'Basado en: ' + res.sources.slice(0, 3).join(' · ');
+              m.querySelector('.bubble').appendChild(s);
+            }
+            say('bot', '¿Esta respuesta resolvió tu inquietud?');
+            askConfirm(deflect, toForm);
+          } else {
+            say('bot', 'No encontré esa información en nuestra base de conocimiento. Vamos a radicarla para que un agente la revise.');
+            setTimeout(toForm, 700);
           }
-          say('bot', '¿Esta respuesta resolvió tu inquietud?');
-          askConfirm(deflect, toForm);
-        } else {
-          say('bot', 'No encontré esa información en nuestra base de conocimiento. Vamos a radicarla para que un agente la revise.');
-          setTimeout(toForm, 700);
-        }
-      })
-      .catch(function () {
-        t.remove();
-        say('bot', 'No pudimos consultar el asistente. Puedes radicar tu solicitud directamente.', 'warn');
-        askConfirm(function () { say('bot', 'Perfecto. Aquí estamos si necesitas algo más.'); }, toForm);
-      })
-      .then(function () {
-        S.busy = false;
-        sendBtn.disabled = false;
-        input.focus();
-      });
+        })
+        .catch(function () {
+          t.remove();
+          say('bot', 'No pudimos consultar el asistente. Puedes radicar tu solicitud directamente.', 'warn');
+          askConfirm(function () { say('bot', 'Perfecto. Aquí estamos si necesitas algo más.'); }, toForm);
+        })
+        .then(function () {
+          S.busy = false;
+          sendBtn.disabled = false;
+          input.focus();
+        });
   }
 
   function deflect() {
@@ -492,21 +490,21 @@
       description: $('#pqrs-desc').value.trim(),
       ragInteractionId: S.interactionId
     })
-      .then(function (res) {
-        S.ticket = res;
-        $('.js-radicado').textContent = res.ticketNumber || res.id || '—';
-        $('.js-tipo').textContent = res.type || 'Por clasificar';
-        $('.js-prioridad').textContent = res.priority || 'Por definir';
-        setPhase('done');
-      })
-      .catch(function () {
-        err.hidden = false;
-        err.textContent = 'No se pudo radicar la solicitud. Revisa tu conexión e inténtalo otra vez.';
-      })
-      .then(function () {
-        btn.disabled = false;
-        btn.textContent = 'Radicar solicitud';
-      });
+        .then(function (res) {
+          S.ticket = res;
+          $('.js-radicado').textContent = res.ticketNumber || res.id || '—';
+          $('.js-tipo').textContent = res.type || 'Por clasificar';
+          $('.js-prioridad').textContent = res.priority || 'Por definir';
+          setPhase('done');
+        })
+        .catch(function () {
+          err.hidden = false;
+          err.textContent = 'No se pudo radicar la solicitud. Revisa tu conexión e inténtalo otra vez.';
+        })
+        .then(function () {
+          btn.disabled = false;
+          btn.textContent = 'Radicar solicitud';
+        });
   }
 
   function reset() {
@@ -545,14 +543,14 @@
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(); }
   });
   input.addEventListener('input', function () {
-    input.style.height = '42px';
-    input.style.height = Math.min(input.scrollHeight, 110) + 'px';
+    input.style.height = '44px';
+    input.style.height = Math.min(input.scrollHeight, 112) + 'px';
   });
   shadow.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && S.open) toggle(false);
   });
 
-  /* API pública mínima, por si el sitio quiere abrirlo desde un botón propio */
+  /* API pública mínima */
   window.PQRSWidget = {
     open: function () { toggle(true); },
     close: function () { toggle(false); },

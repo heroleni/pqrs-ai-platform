@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel de agente — PQRS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --surface: #E5FFF7;
+    --surface-low: #D6FCF1;
+    --surface-container: #D0F6EB;
+    --surface-high: #CAF0E5;
+    --white: #FFFFFF;
+    --ink: #00201B;
+    --ink-variant: #4A454D;
+    --outline: #CCC4CE;
+    --primary: #1C0832;
+    --primary-container: #321E48;
+    --on-primary-container: #9D85B6;
+    --secondary: #41627C;
+    --tertiary-on: #059F99;
+    --tertiary-dim: #61D9D2;
+    --accent: #65DCD5;
+    --error: #BA1A1A;
+    --error-container: #FFDAD6;
+    --on-error-container: #93000A;
+    --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-xl: 20px;
+    --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: var(--font); background: var(--surface); color: var(--ink);
+    line-height: 1.5; -webkit-font-smoothing: antialiased;
+  }
+  button, input, select, textarea { font-family: inherit; }
+
+  /* ---------------- Estructura ---------------- */
+  .shell { display: grid; grid-template-columns: 264px 1fr; min-height: 100vh; }
+
+  aside {
+    background: var(--white); border-right: 1px solid rgba(67,99,126,.1);
+    display: flex; flex-direction: column; padding: 22px 18px;
+    border-radius: 0 var(--r-xl) var(--r-xl) 0;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; padding: 0 8px 26px; }
+  .brand .logo {
+    width: 40px; height: 40px; flex: none; display: grid; place-items: center;
+    border-radius: var(--r-md); background: var(--primary-container); color: var(--accent);
+  }
+  .brand .logo svg { width: 22px; height: 22px; }
+  .brand b { display: block; font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+  .brand span { display: block; font-size: 11px; font-weight: 600; letter-spacing: .08em;
+                text-transform: uppercase; color: var(--ink-variant); }
+
+  nav { display: flex; flex-direction: column; gap: 4px; }
+  nav button {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    padding: 13px 16px; border: 0; border-radius: var(--r-md); cursor: pointer;
+    background: transparent; color: var(--ink); font-size: 14px; font-weight: 500;
+    text-align: left; transition: background .15s;
+  }
+  nav button:hover { background: var(--surface-low); }
+  nav button[aria-current="true"] { background: var(--primary-container); color: #fff; font-weight: 600; }
+  nav button svg { width: 18px; height: 18px; flex: none; }
+
+  .who {
+    margin-top: auto; display: flex; align-items: center; gap: 12px;
+    padding: 14px; border-radius: var(--r-lg); background: var(--surface-high);
+  }
+  .who .av { width: 34px; height: 34px; flex: none; display: grid; place-items: center;
+             border-radius: 999px; background: var(--primary-container); color: var(--accent); }
+  .who .av svg { width: 17px; height: 17px; }
+  .who b { display: block; font-size: 13px; font-weight: 600; }
+  .who span { display: block; font-size: 10px; font-weight: 600; letter-spacing: .08em;
+              text-transform: uppercase; color: var(--ink-variant); }
+  .who .grow { flex: 1; min-width: 0; }
+  .who button { border: 0; background: none; cursor: pointer; color: var(--ink-variant); padding: 4px; }
+  .who button:hover { color: var(--error); }
+
+  /* ---------------- Barra superior ---------------- */
+  .topbar {
+    display: flex; align-items: center; gap: 18px; padding: 18px 28px;
+    background: var(--white); border-bottom: 1px solid rgba(67,99,126,.1);
+  }
+  .search { flex: 1; max-width: 420px; position: relative; }
+  .search svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+                width: 16px; height: 16px; color: var(--ink-variant); }
+  .search input {
+    width: 100%; padding: 11px 14px 11px 40px; border: 1px solid var(--outline);
+    border-radius: 999px; background: var(--surface-low); font-size: 14px; color: var(--ink);
+  }
+  .search input:focus { outline: none; border-color: var(--accent);
+                        box-shadow: 0 0 0 3px rgba(101,220,213,.25); background: #fff; }
+  .topbar .grow { flex: 1; }
+  .tenantchip { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; }
+  .tenantchip svg { width: 16px; height: 16px; color: var(--ink-variant); }
+  .livebox { text-align: right; }
+  .livebox small { display: block; font-size: 11px; color: var(--ink-variant); }
+  .live { display: flex; align-items: center; justify-content: flex-end; gap: 7px;
+          font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #B9B4BB; }
+  .live[data-on="1"] { color: var(--tertiary-on); }
+  .live[data-on="1"]::before { background: var(--accent); box-shadow: 0 0 0 4px rgba(101,220,213,.28); }
+  .live[data-on="0"] { color: var(--error); }
+  .live[data-on="0"]::before { background: var(--error); }
+
+  main { padding: 26px 28px 48px; }
+  .view[hidden] { display: none; }
+
+  /* ---------------- KPIs ---------------- */
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin-bottom: 26px; }
+  .kpi { background: var(--surface-container); border-radius: var(--r-lg); padding: 18px 20px; }
+  .kpi .head { display: flex; align-items: center; gap: 11px; margin-bottom: 22px; }
+  .kpi .ic { width: 32px; height: 32px; flex: none; display: grid; place-items: center;
+             border-radius: var(--r-sm); background: var(--primary-container); color: var(--accent); }
+  .kpi .ic svg { width: 16px; height: 16px; }
+  .kpi .head span { font-size: 14px; font-weight: 500; }
+  .kpi .val { display: flex; align-items: baseline; gap: 10px; }
+  .kpi .val b { font-size: 26px; font-weight: 700; letter-spacing: -.02em; }
+  .kpi .val em { font-style: normal; font-size: 12px; font-weight: 600; padding: 3px 9px;
+                 border-radius: 999px; background: var(--surface-high); color: var(--secondary); }
+  .kpi[data-alert="1"] .ic { background: var(--error-container); color: var(--on-error-container); }
+  .kpi[data-alert="1"] .val em { background: var(--error-container); color: var(--on-error-container); }
+
+  /* ---------------- Paneles ---------------- */
+  .split { display: grid; grid-template-columns: 1fr 340px; gap: 20px; align-items: start; }
+  @media (max-width: 1100px) { .split { grid-template-columns: 1fr; } }
+
+  .panel { background: var(--surface-container); border-radius: var(--r-lg); overflow: hidden; }
+  .panel > header { display: flex; align-items: flex-start; gap: 14px; padding: 18px 20px 14px; }
+  .panel > header .grow { flex: 1; }
+  .panel h2 { margin: 0; font-size: 16px; font-weight: 600; }
+  .panel .sub { margin: 3px 0 0; font-size: 13px; color: var(--ink-variant); }
+
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 20px 14px; }
+  select, .btn {
+    padding: 9px 14px; border-radius: var(--r-sm); font-size: 13px; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--outline); background: var(--white); color: var(--ink);
+  }
+  select:focus, .btn:focus-visible { outline: none; border-color: var(--accent);
+                                     box-shadow: 0 0 0 3px rgba(101,220,213,.25); }
+  .btn.primary { background: var(--accent); color: var(--primary-container); border-color: transparent; }
+  .btn:hover { filter: brightness(.97); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  table { width: 100%; border-collapse: collapse; background: var(--white); }
+  thead th {
+    text-align: left; padding: 13px 20px; font-size: 11px; font-weight: 700;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--ink-variant);
+    border-bottom: 1px solid rgba(67,99,126,.12); white-space: nowrap;
+  }
+  tbody td { padding: 15px 20px; border-bottom: 1px solid rgba(67,99,126,.08); vertical-align: top; font-size: 14px; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: var(--surface-low); }
+  .num { font-size: 12px; font-weight: 700; color: var(--secondary); white-space: nowrap; }
+  .subject { font-weight: 600; margin: 3px 0 4px; }
+  .summary { font-size: 13px; color: var(--ink-variant); max-width: 420px; }
+
+  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px;
+          border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .04em;
+          text-transform: uppercase; background: var(--surface-high); color: var(--primary-container); }
+  .chip[data-tone="alta"], .chip[data-tone="negativo"] { background: var(--error-container); color: var(--on-error-container); }
+  .chip[data-tone="baja"], .chip[data-tone="positivo"] { background: #CCE5FF; color: #294A64; }
+  .chip[data-tone="resuelto"] { background: #D9FFF4; color: #00504D; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  .empty { padding: 40px 20px; text-align: center; color: var(--ink-variant); font-size: 14px; background: var(--white); }
+
+  /* ---------------- Actividad RAG ---------------- */
+  .feed { padding: 4px 20px 20px; display: flex; flex-direction: column; gap: 14px; }
+  .note {
+    padding: 15px 16px; border-radius: var(--r-md); background: var(--surface-high);
+    border-left: 3px solid var(--accent); font-size: 13px;
+  }
+  .note b { display: block; font-size: 11px; font-weight: 700; letter-spacing: .08em;
+            text-transform: uppercase; color: var(--ink-variant); margin-bottom: 5px; }
+  .event {
+    padding: 15px 16px; border-radius: var(--r-md); background: var(--white);
+    border-left: 3px solid var(--error); animation: pop .35s ease;
+  }
+  @keyframes pop { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+  .event .when { font-size: 11px; font-weight: 700; letter-spacing: .08em;
+                 text-transform: uppercase; color: var(--ink-variant); }
+  .event .t { font-weight: 600; margin: 5px 0 6px; font-size: 14px; }
+  .event .s { font-size: 13px; color: var(--ink-variant); margin-bottom: 9px; }
+  .badge-live { margin-left: 7px; padding: 2px 7px; border-radius: 999px;
+                background: var(--accent); color: var(--primary-container);
+                font-size: 9px; font-weight: 800; letter-spacing: .08em; }
+
+  /* ---------------- Login ---------------- */
+  .gate { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+  .gate .box { width: 100%; max-width: 400px; background: var(--white);
+               border-radius: var(--r-xl); padding: 34px; }
+  .gate h1 { margin: 0 0 6px; font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+  .gate p.lead { margin: 0 0 24px; font-size: 14px; color: var(--ink-variant); }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; margin-bottom: 6px; font-size: 11px; font-weight: 700;
+                 letter-spacing: .08em; text-transform: uppercase; color: var(--ink-variant); }
+  .field input { width: 100%; padding: 12px 14px; border: 1px solid var(--outline);
+                 border-radius: var(--r-md); font-size: 14px; color: var(--ink); background: #fff; }
+  .field input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(101,220,213,.25); }
+  .gate .btn.primary { width: 100%; padding: 13px; margin-top: 8px; font-size: 14px; }
+  .msg { margin: 14px 0 0; font-size: 13px; color: var(--ink-variant); }
+  .msg[data-error="1"] { color: var(--error); }
+
+  /* ---------------- Base de conocimiento ---------------- */
+  .kb { display: grid; gap: 12px; padding: 4px 20px 20px; }
+  .kbitem { background: var(--white); border-radius: var(--r-md); padding: 16px 18px; }
+  .kbitem .top { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
+  .kbitem h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+  .kbitem p { margin: 0; font-size: 13px; color: var(--ink-variant); }
+  .kbform { background: var(--white); border-radius: var(--r-md); padding: 18px; margin: 4px 20px 0; }
+  .kbform textarea { width: 100%; min-height: 90px; padding: 12px 14px; border: 1px solid var(--outline);
+                     border-radius: var(--r-md); font-size: 14px; resize: vertical; }
+  .kbform textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(101,220,213,.25); }
+</style>
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<div class="gate" id="gate">
+  <div class="box">
+    <h1>Panel de agente</h1>
+    <p class="lead">Plataforma de gestión de PQRS con IA.</p>
+
+    <div class="field"><label for="email">Correo</label><input id="email" value="admin@demo.local"></div>
+    <div class="field"><label for="password">Contraseña</label><input id="password" type="password" value="Admin123!"></div>
+    <div class="field"><label for="api">API</label><input id="api" value="http://localhost:8081"></div>
+
+    <button class="btn primary" id="btnLogin">Entrar</button>
+    <p class="msg" id="loginMsg"></p>
+  </div>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div class="shell" id="app" hidden>
+  <aside>
+    <div class="brand">
+      <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 3 6v6c0 5 3.8 9.2 9 10 5.2-.8 9-5 9-10V6l-9-4z"/><path d="m9 12 2 2 4-4"/></svg></span>
+      <div><b>PQRS</b><span>Plataforma IA</span></div>
+    </div>
+
+    <nav>
+      <button data-view="overview" aria-current="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Resumen
+      </button>
+      <button data-view="tickets">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2 2 2 0 0 0 0 4 2 2 0 0 1-2 2H5a2 2 0 0 1-2-2 2 2 0 0 0 0-4z"/><path d="M13 7v10"/></svg>
+        Tickets
+      </button>
+      <button data-view="kb">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v16a1 1 0 0 0 1 1h15"/><path d="M8 16V9M12 16V5M16 16v-4"/></svg>
+        Base de conocimiento
+      </button>
+    </nav>
+
+    <div class="who">
+      <span class="av"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>
+      <div class="grow"><b id="whoName">—</b><span id="whoRole">—</span></div>
+      <button id="btnLogout" title="Cerrar sesión">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <div>
+    <div class="topbar">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" placeholder="Buscar por radicado, asunto o cliente…">
+      </div>
+      <div class="grow"></div>
+      <div class="tenantchip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M9 9h.01M15 9h.01M9 13h.01M15 13h.01"/></svg>
+        <span id="tenantName">—</span>
+      </div>
+      <div class="livebox">
+        <small>Notificaciones</small>
+        <div class="live" id="live" data-on="0">conectando</div>
+      </div>
+    </div>
+
+    <main>
+      <!-- ---------- Resumen ---------- -->
+      <section class="view" id="view-overview">
+        <div class="kpis">
+          <div class="kpi">
+            <div class="head"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2 2 2 0 0 0 0 4 2 2 0 0 1-2 2H5a2 2 0 0 1-2-2 2 2 0 0 0 0-4z"/></svg></span><span>Total de PQRS</span></div>
+            <div class="val"><b id="kTotal">—</b></div>
+          </div>
+          <div class="kpi">
+            <div class="head"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span>Pendientes</span></div>
+            <div class="val"><b id="kPend">—</b></div>
+          </div>
+          <div class="kpi" data-alert="1">
+            <div class="head"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span><span>Prioridad alta</span></div>
+            <div class="val"><b id="kAlta">—</b></div>
+          </div>
+          <div class="kpi">
+            <div class="head"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3"/></svg></span><span>Escalados por el chat</span></div>
+            <div class="val"><b id="kRag">—</b><em id="kRagPct">—</em></div>
+          </div>
+        </div>
+
+        <div class="split">
+          <div class="panel">
+            <header>
+              <div class="grow">
+                <h2>Bandeja prioritaria</h2>
+                <p class="sub">PQRS que la IA marcó como urgentes y siguen sin resolver.</p>
+              </div>
+              <button class="btn" id="btnRefresh">Actualizar</button>
+            </header>
+            <div id="inbox"><div class="empty">Cargando…</div></div>
+          </div>
+
+          <div class="panel">
+            <header><div class="grow"><h2>Actividad en tiempo real</h2><p class="sub">Eventos del hub para esta empresa.</p></div></header>
+            <div class="feed" id="feed">
+              <div class="note">
+                <b>Cómo funciona</b>
+                El hub emite solo las PQRS con prioridad Alta o sentimiento Negativo,
+                y únicamente al grupo de esta empresa. Radica una desde el widget para verlo.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- Tickets ---------- -->
+      <section class="view" id="view-tickets" hidden>
+        <div class="panel">
+          <header>
+            <div class="grow"><h2>Gestión de PQRS</h2><p class="sub">Clasificadas automáticamente por el módulo de IA.</p></div>
+          </header>
+          <div class="toolbar">
+            <select id="fStatus">
+              <option value="">Todos los estados</option>
+              <option value="Pendiente">Pendiente</option>
+              <option value="EnProceso">En proceso</option>
+              <option value="Resuelto">Resuelto</option>
+            </select>
+            <select id="fPriority">
+              <option value="">Todas las prioridades</option>
+              <option value="Alta">Alta</option>
+              <option value="Media">Media</option>
+              <option value="Baja">Baja</option>
+            </select>
+            <button class="btn" id="btnFilter">Filtrar</button>
+          </div>
+          <div id="ticketsTable"><div class="empty">Cargando…</div></div>
+        </div>
+      </section>
+
+      <!-- ---------- Base de conocimiento ---------- -->
+      <section class="view" id="view-kb" hidden>
+        <div class="panel">
+          <header>
+            <div class="grow"><h2>Base de conocimiento</h2>
+            <p class="sub">Cada artículo genera su embedding al guardarse. Es lo que consulta el chat del widget.</p></div>
+          </header>
+          <div class="kbform">
+            <div class="field"><label for="kbTitle">Título</label><input id="kbTitle" placeholder="Ej: Horario de atención"></div>
+            <div class="field"><label for="kbContent">Contenido</label><textarea id="kbContent" placeholder="Respuesta que el asistente podrá usar…"></textarea></div>
+            <button class="btn primary" id="btnKbSave">Guardar artículo</button>
+            <p class="msg" id="kbMsg"></p>
+          </div>
+          <div class="kb" id="kbList"><div class="empty">Cargando…</div></div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var token = null, conn = null, tickets = [], liveCount = 0;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var api = function () { return $('api').value.trim().replace(/\/+$/, ''); };
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function auth() { return { 'Authorization': 'Bearer ' + token }; }
+
+  function say(id, text, isError) {
+    $(id).textContent = text;
+    $(id).setAttribute('data-error', isError ? '1' : '0');
+  }
+
+  /* ---------------- Login ---------------- */
+  $('btnLogin').addEventListener('click', login);
+  $('password').addEventListener('keydown', function (e) { if (e.key === 'Enter') login(); });
+
+  async function login() {
+    say('loginMsg', 'Autenticando…', false);
+
+    try {
+      var res = await fetch(api() + '/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: $('email').value.trim(), password: $('password').value })
+      });
+
+      if (!res.ok) throw new Error(res.status === 401 ? 'Credenciales inválidas' : 'HTTP ' + res.status);
+
+      var d = await res.json();
+      token = d.token;
+
+      $('whoName').textContent = d.fullName;
+      $('whoRole').textContent = d.role;
+      $('tenantName').textContent = d.tenantSlug || d.tenantName || '—';
+
+      $('gate').hidden = true;
+      $('app').hidden = false;
+
+      loadTickets(); connect();
+    } catch (err) {
+      say('loginMsg', 'No se pudo entrar: ' + err.message, true);
+    }
+  }
+
+  $('btnLogout').addEventListener('click', async function () {
+    if (conn) { await conn.stop(); conn = null; }
+    token = null;
+    $('app').hidden = true;
+    $('gate').hidden = false;
+    say('loginMsg', 'Sesión cerrada.', false);
+  });
+
+  /* ---------------- Navegación ---------------- */
+  document.querySelectorAll('nav button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('nav button').forEach(function (x) { x.setAttribute('aria-current', 'false'); });
+      b.setAttribute('aria-current', 'true');
+
+      ['overview', 'tickets', 'kb'].forEach(function (v) {
+        $('view-' + v).hidden = (v !== b.dataset.view);
+      });
+
+      if (b.dataset.view === 'kb') loadKb();
+      if (b.dataset.view === 'tickets') renderTable();
+    });
+  });
+
+  /* ---------------- SignalR ---------------- */
+  async function connect() {
+    conn = new signalR.HubConnectionBuilder()
+      .withUrl(api() + '/hubs/tickets', { accessTokenFactory: function () { return token; } })
+      .withAutomaticReconnect()
+      .build();
+
+    conn.on('CriticalTicket', function (t) {
+      pushEvent(t);
+      loadTickets();
+    });
+
+    conn.onreconnecting(function () { setLive(null, 'reconectando'); });
+    conn.onreconnected(function () { setLive(true, 'en vivo'); });
+    conn.onclose(function () { setLive(false, 'desconectado'); });
+
+    try {
+      await conn.start();
+      setLive(true, 'en vivo');
+    } catch (err) {
+      setLive(false, 'sin conexión');
+    }
+  }
+
+  function setLive(on, text) {
+    $('live').setAttribute('data-on', on === null ? '' : (on ? '1' : '0'));
+    $('live').textContent = text;
+  }
+
+  function pushEvent(t) {
+    if (liveCount === 0) $('feed').innerHTML = '';
+    liveCount++;
+
+    var el = document.createElement('div');
+    el.className = 'event';
+    el.innerHTML =
+      '<div class="when">' + new Date().toLocaleTimeString() +
+        '<span class="badge-live">EN VIVO</span></div>' +
+      '<p class="t">' + esc(t.subject || 'PQRS crítica') + '</p>' +
+      (t.summary ? '<p class="s">' + esc(t.summary) + '</p>' : '') +
+      '<div class="chips">' +
+        chip(t.ticketNumber) + chip(t.type) + chip(t.priority) + chip(t.sentiment) +
+      '</div>';
+
+    $('feed').prepend(el);
+  }
+
+  function chip(text) {
+    if (!text) return '';
+    return '<span class="chip" data-tone="' + esc(String(text).toLowerCase()) + '">' + esc(text) + '</span>';
+  }
+
+  /* ---------------- Tickets ---------------- */
+  async function loadTickets() {
+    try {
+      var res = await fetch(api() + '/api/v1/tickets?pageSize=100', { headers: auth() });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+
+      tickets = await res.json();
+      renderKpis();
+      renderInbox();
+      renderTable();
+    } catch (err) {
+      $('inbox').innerHTML = '<div class="empty">No se pudieron cargar las PQRS: ' + esc(err.message) + '</div>';
+    }
+  }
+
+  function renderKpis() {
+    var pend = tickets.filter(function (t) { return t.status === 'Pendiente'; }).length;
+    var alta = tickets.filter(function (t) { return t.priority === 'Alta'; }).length;
+    var rag = tickets.filter(function (t) { return t.cameFromRag; }).length;
+
+    $('kTotal').textContent = tickets.length;
+    $('kPend').textContent = pend;
+    $('kAlta').textContent = alta;
+    $('kRag').textContent = rag;
+    $('kRagPct').textContent = tickets.length
+      ? Math.round(rag / tickets.length * 100) + '% del total' : '—';
+  }
+
+  function renderInbox() {
+    var urgentes = tickets.filter(function (t) {
+      return (t.priority === 'Alta' || t.sentiment === 'Negativo') && t.status !== 'Resuelto';
+    }).slice(0, 6);
+
+    if (!urgentes.length) {
+      $('inbox').innerHTML = '<div class="empty">No hay PQRS urgentes sin resolver.</div>';
+      return;
+    }
+
+    $('inbox').innerHTML =
+      '<table><thead><tr><th>PQRS / resumen de la IA</th><th>Clasificación</th><th></th></tr></thead><tbody>' +
+      urgentes.map(function (t) {
+        return '<tr>' +
+          '<td><span class="num">' + esc(t.ticketNumber) + '</span>' +
+            '<p class="subject">' + esc(t.subject) + '</p>' +
+            '<p class="summary">' + esc(t.summary || t.description) + '</p></td>' +
+          '<td><div class="chips">' + chip(t.type) + chip(t.priority) + chip(t.sentiment) + '</div></td>' +
+          '<td>' + actions(t) + '</td>' +
+        '</tr>';
+      }).join('') + '</tbody></table>';
+
+    bindActions();
+  }
+
+  function renderTable() {
+    var fs = $('fStatus').value, fp = $('fPriority').value;
+    var q = $('q').value.trim().toLowerCase();
+
+    var rows = tickets.filter(function (t) {
+      if (fs && t.status !== fs) return false;
+      if (fp && t.priority !== fp) return false;
+      if (q && (t.ticketNumber + ' ' + t.subject + ' ' + t.customerName).toLowerCase().indexOf(q) < 0) return false;
+      return true;
+    });
+
+    if (!rows.length) {
+      $('ticketsTable').innerHTML = '<div class="empty">Ninguna PQRS coincide con el filtro.</div>';
+      return;
+    }
+
+    $('ticketsTable').innerHTML =
+      '<table><thead><tr><th>PQRS</th><th>Cliente</th><th>Clasificación</th><th>Estado</th><th></th></tr></thead><tbody>' +
+      rows.map(function (t) {
+        return '<tr>' +
+          '<td><span class="num">' + esc(t.ticketNumber) + '</span>' +
+            '<p class="subject">' + esc(t.subject) + '</p>' +
+            '<p class="summary">' + esc(t.summary || t.description) + '</p></td>' +
+          '<td>' + esc(t.customerName) + '<p class="summary">' + esc(t.customerEmail) + '</p></td>' +
+          '<td><div class="chips">' + chip(t.type) + chip(t.priority) + chip(t.sentiment) +
+            (t.cameFromRag ? '<span class="chip">del chat</span>' : '') + '</div></td>' +
+          '<td>' + chip(t.status) + '</td>' +
+          '<td>' + actions(t) + '</td>' +
+        '</tr>';
+      }).join('') + '</tbody></table>';
+
+    bindActions();
+  }
+
+  function actions(t) {
+    if (t.status === 'Resuelto') return '';
+    var next = t.status === 'Pendiente' ? 'EnProceso' : 'Resuelto';
+    var label = t.status === 'Pendiente' ? 'Tomar' : 'Resolver';
+    return '<button class="btn" data-id="' + t.id + '" data-next="' + next + '">' + label + '</button>';
+  }
+
+  function bindActions() {
+    document.querySelectorAll('button[data-next]').forEach(function (b) {
+      b.addEventListener('click', async function () {
+        b.disabled = true;
+        try {
+          var res = await fetch(api() + '/api/v1/tickets/' + b.dataset.id + '/status', {
+            method: 'PATCH',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, auth()),
+            body: JSON.stringify({ status: b.dataset.next })
+          });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          await loadTickets();
+        } catch (err) {
+          b.disabled = false;
+          b.textContent = 'Error';
+        }
+      });
+    });
+  }
+
+  $('btnRefresh').addEventListener('click', loadTickets);
+  $('btnFilter').addEventListener('click', renderTable);
+  $('q').addEventListener('input', function () { renderTable(); renderInbox(); });
+
+  /* ---------------- Base de conocimiento ---------------- */
+  async function loadKb() {
+    try {
+      var res = await fetch(api() + '/api/v1/kb-articles', { headers: auth() });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+
+      var items = await res.json();
+
+      if (!items.length) {
+        $('kbList').innerHTML = '<div class="empty">Todavía no hay artículos.</div>';
+        return;
+      }
+
+      $('kbList').innerHTML = items.map(function (a) {
+        return '<div class="kbitem"><div class="top"><div>' +
+          '<h3>' + esc(a.title) + '</h3><p>' + esc(a.content) + '</p></div>' +
+          '<button class="btn" data-del="' + a.id + '">Eliminar</button>' +
+        '</div></div>';
+      }).join('');
+
+      document.querySelectorAll('button[data-del]').forEach(function (b) {
+        b.addEventListener('click', async function () {
+          b.disabled = true;
+          await fetch(api() + '/api/v1/kb-articles/' + b.dataset.del, { method: 'DELETE', headers: auth() });
+          loadKb();
+        });
+      });
+    } catch (err) {
+      $('kbList').innerHTML = '<div class="empty">No se pudo cargar: ' + esc(err.message) + '</div>';
+    }
+  }
+
+  $('btnKbSave').addEventListener('click', async function () {
+    var title = $('kbTitle').value.trim(), content = $('kbContent').value.trim();
+
+    if (!title || !content) { say('kbMsg', 'Título y contenido son obligatorios.', true); return; }
+
+    say('kbMsg', 'Guardando y generando embedding…', false);
+
+    try {
+      var res = await fetch(api() + '/api/v1/kb-articles', {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, auth()),
+        body: JSON.stringify({ title: title, content: content })
+      });
+
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+
+      $('kbTitle').value = '';
+      $('kbContent').value = '';
+      say('kbMsg', 'Artículo guardado. Ya es consultable desde el widget.', false);
+      loadKb();
+    } catch (err) {
+      say('kbMsg', 'No se pudo guardar: ' + err.message, true);
+    }
+  });
+})();
+</script>
+</body>
+</html>
