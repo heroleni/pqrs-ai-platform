@@ -489,3 +489,4 @@ $RECYCLE.BIN/
 # Variables de entorno
 .env
 .env.local-listo
+.env.local-listo

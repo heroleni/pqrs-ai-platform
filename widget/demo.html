@@ -3,48 +3,283 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sitio de prueba — Widget PQRS</title>
+  <title>Velocidad Motors — Concesionario</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    :root { --ink:#00201B; --muted:#43637E; --line:rgba(67,99,126,.15); }
+    :root {
+      --surface: #E5FFF7;
+      --surface-low: #D6FCF1;
+      --surface-container: #D0F6EB;
+      --surface-high: #CAF0E5;
+      --white: #FFFFFF;
+      --ink: #00201B;
+      --ink-variant: #4A454D;
+      --outline: #CCC4CE;
+      --primary: #1C0832;
+      --primary-container: #321E48;
+      --accent: #65DCD5;
+      --secondary: #41627C;
+      --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-xl: 24px;
+      --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
     * { box-sizing: border-box; }
-    body { margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      color: var(--ink); background:#E5FFF7; line-height:1.6; }
-    header { border-bottom:1px solid var(--line); padding:18px 28px; display:flex; gap:14px; align-items:center; }
-    header b { font-size:15px; letter-spacing:.3px; }
-    header span { font-size:13px; color:var(--muted); }
-    main { max-width: 720px; margin: 0 auto; padding: 64px 28px 120px; }
-    h1 { font-size: 34px; line-height:1.2; margin:0 0 14px; letter-spacing:-.5px; }
-    p.lead { font-size:17px; color:var(--muted); margin:0 0 36px; }
-    .note { border:1px solid var(--line); border-radius:12px; padding:18px 20px; background:#fff; }
-    .note h2 { margin:0 0 8px; font-size:14px; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); }
-    code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size:13px; background:#F2F3F2; padding:2px 5px; border-radius:4px; }
-    ul { padding-left:20px; }
+    [hidden] { display: none !important; }
+    body {
+      margin: 0; font-family: var(--font); background: var(--surface); color: var(--ink);
+      line-height: 1.6; -webkit-font-smoothing: antialiased;
+    }
+
+    /* ---------------- Barra superior ---------------- */
+    .nav {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; align-items: center; gap: 30px;
+      padding: 16px 40px; background: rgba(255,255,255,.86);
+      -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(67,99,126,.1);
+    }
+    .logo { display: flex; align-items: center; gap: 11px; }
+    .logo .mark {
+      width: 38px; height: 38px; display: grid; place-items: center;
+      border-radius: var(--r-md); background: var(--primary-container); color: var(--accent);
+    }
+    .logo .mark svg { width: 21px; height: 21px; }
+    .logo b { display: block; font-size: 15px; font-weight: 700; letter-spacing: -.01em; line-height: 1.2; }
+    .logo span { display: block; font-size: 10px; font-weight: 600; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--ink-variant); }
+    .nav .links { display: flex; gap: 26px; margin-left: 16px; }
+    .nav .links a { color: var(--ink); text-decoration: none; font-size: 14px; font-weight: 500; }
+    .nav .links a:hover { color: var(--secondary); }
+    .nav .grow { flex: 1; }
+    .nav .cta {
+      padding: 10px 20px; border: 0; border-radius: var(--r-sm); cursor: pointer;
+      background: var(--primary-container); color: #fff; font: 600 14px var(--font);
+    }
+    .nav .cta:hover { filter: brightness(1.15); }
+    @media (max-width: 860px) { .nav .links { display: none; } }
+
+    /* ---------------- Portada ---------------- */
+    .hero { padding: 76px 40px 60px; max-width: 1180px; margin: 0 auto; }
+    .eyebrow {
+      display: inline-block; padding: 6px 15px; border-radius: 999px;
+      background: var(--primary-container); color: var(--accent);
+      font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    }
+    .hero h1 {
+      margin: 20px 0 18px; font-size: 52px; line-height: 1.08; font-weight: 700;
+      letter-spacing: -.03em; max-width: 620px;
+    }
+    .hero p { font-size: 18px; color: var(--ink-variant); max-width: 560px; margin: 0 0 30px; }
+    .hero .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+    .btn {
+      padding: 14px 26px; border-radius: var(--r-sm); cursor: pointer;
+      font: 600 15px var(--font); border: 1px solid transparent;
+    }
+    .btn.dark { background: var(--primary-container); color: #fff; }
+    .btn.light { background: var(--white); color: var(--ink); border-color: var(--outline); }
+    .btn:hover { filter: brightness(.97); }
+    @media (max-width: 700px) { .hero h1 { font-size: 36px; } }
+
+    /* ---------------- Vehículos ---------------- */
+    .section { max-width: 1180px; margin: 0 auto; padding: 0 40px 64px; }
+    .section .head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px; }
+    .section h2 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -.02em; }
+    .section .head p { margin: 0; font-size: 15px; color: var(--ink-variant); }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+    .car {
+      background: var(--white); border-radius: var(--r-lg); overflow: hidden;
+      border: 1px solid rgba(67,99,126,.1);
+    }
+    .car .photo {
+      height: 168px; display: grid; place-items: center;
+      background: linear-gradient(135deg, var(--surface-high), var(--surface-low));
+      color: var(--primary-container);
+    }
+    .car .photo svg { width: 92px; height: 92px; opacity: .55; }
+    .car .body { padding: 18px 20px 20px; }
+    .car .tagline { font-size: 11px; font-weight: 700; letter-spacing: .09em;
+      text-transform: uppercase; color: var(--secondary); }
+    .car h3 { margin: 6px 0 4px; font-size: 18px; font-weight: 600; }
+    .car .price { font-size: 20px; font-weight: 700; letter-spacing: -.01em; margin-bottom: 12px; }
+    .car dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; font-size: 13px; }
+    .car dt { color: var(--ink-variant); }
+    .car dd { margin: 0; text-align: right; font-weight: 600; }
+
+    /* ---------------- Servicios ---------------- */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+    .svc { background: var(--surface-container); border-radius: var(--r-lg); padding: 24px; }
+    .svc .ic {
+      width: 42px; height: 42px; display: grid; place-items: center; margin-bottom: 16px;
+      border-radius: var(--r-md); background: var(--primary-container); color: var(--accent);
+    }
+    .svc .ic svg { width: 21px; height: 21px; }
+    .svc h3 { margin: 0 0 7px; font-size: 17px; font-weight: 600; }
+    .svc p { margin: 0; font-size: 14px; color: var(--ink-variant); }
+
+    /* ---------------- Ayuda / pistas para el widget ---------------- */
+    .helper {
+      background: var(--white); border-radius: var(--r-lg); padding: 26px 28px;
+      border: 1px solid rgba(67,99,126,.1);
+    }
+    .helper h2 { margin: 0 0 6px; font-size: 19px; font-weight: 600; }
+    .helper > p { margin: 0 0 18px; font-size: 14px; color: var(--ink-variant); }
+    .qs { display: flex; gap: 10px; flex-wrap: wrap; }
+    .qs button {
+      padding: 10px 16px; border: 1px solid var(--outline); border-radius: 999px;
+      background: var(--surface-low); cursor: pointer; font: 500 14px var(--font); color: var(--ink);
+    }
+    .qs button:hover { border-color: var(--accent); background: var(--white); }
+    .helper .foot { margin: 18px 0 0; font-size: 13px; color: var(--ink-variant); }
+    code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px;
+      background: var(--surface-low); padding: 2px 6px; border-radius: 4px; }
+
+    footer {
+      border-top: 1px solid rgba(67,99,126,.1); margin-top: 20px;
+      padding: 26px 40px; font-size: 13px; color: var(--ink-variant);
+      display: flex; gap: 16px; flex-wrap: wrap; max-width: 1180px; margin-inline: auto;
+    }
+    footer .grow { flex: 1; }
   </style>
 </head>
 <body>
-<header><b>Empresa Demo</b><span>sitio de prueba del widget</span></header>
-<main>
-  <h1>Esta página existe solo para probar el widget.</h1>
-  <p class="lead">Abre el botón de la esquina inferior derecha. Esta página apunta a la API real en el puerto 8081.</p>
 
-  <div class="note">
-    <h2>Consultas que la base de conocimiento sí responde</h2>
-    <ul>
-      <li>“¿Cuál es el horario de atención?”</li>
-      <li>“¿Cómo cambio la fecha de pago?”</li>
-      <li>“¿Cuánto tardan en responder una PQRS?”</li>
-    </ul>
-    <p style="margin:12px 0 0; color:var(--muted); font-size:14px;">
-      Cualquier otra pregunta cae por debajo del umbral de similitud y salta directo al formulario. Sirve este archivo con <code>python3 -m http.server 5500</code>, que es el origen autorizado en el seed.
+<div class="nav">
+  <div class="logo">
+    <span class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14M4 17v-4l2-5a2 2 0 0 1 2-1h8a2 2 0 0 1 2 1l2 5v4"/><circle cx="7.5" cy="17" r="1.5"/><circle cx="16.5" cy="17" r="1.5"/></svg></span>
+    <div><b>Velocidad Motors</b><span>Concesionario</span></div>
+  </div>
+  <div class="links">
+    <a href="#vehiculos">Vehículos</a>
+    <a href="#servicios">Servicios</a>
+    <a href="#ayuda">Ayuda</a>
+  </div>
+  <div class="grow"></div>
+  <button class="cta" onclick="window.PQRSWidget && window.PQRSWidget.open()">Contactar</button>
+</div>
+
+<section class="hero">
+  <span class="eyebrow">Temporada 2026</span>
+  <h1>Tu próximo carro, sin filas ni papeleo.</h1>
+  <p>
+    Cotiza, agenda mantenimiento o radica una solicitud desde cualquier página.
+    Nuestro asistente responde al instante y, si necesita un humano, lo escala solo.
+  </p>
+  <div class="actions">
+    <button class="btn dark" onclick="window.PQRSWidget && window.PQRSWidget.open()">Hablar con el asistente</button>
+    <a class="btn light" href="#vehiculos" style="text-decoration:none; display:inline-block">Ver inventario</a>
+  </div>
+</section>
+
+<section class="section" id="vehiculos">
+  <div class="head">
+    <h2>Inventario destacado</h2>
+    <p>Disponibilidad inmediata en sede Medellín.</p>
+  </div>
+  <div class="grid">
+    <div class="car">
+      <div class="photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17v-4l2.2-5.4A2 2 0 0 1 8 6.4h8a2 2 0 0 1 1.8 1.2L20 13v4M2 17h20"/><circle cx="7" cy="17.5" r="2"/><circle cx="17" cy="17.5" r="2"/><path d="M5.5 13h13"/></svg></div>
+      <div class="body">
+        <span class="tagline">Eléctrico</span>
+        <h3>Vento EV Sedán</h3>
+        <p class="price">$142.900.000</p>
+        <dl><dt>Autonomía</dt><dd>480 km</dd><dt>Garantía</dt><dd>5 años</dd><dt>Entrega</dt><dd>Inmediata</dd></dl>
+      </div>
+    </div>
+    <div class="car">
+      <div class="photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 16v-3l2-6h14l2 6v3M2 16h20"/><rect x="6" y="9" width="12" height="3" rx="1"/><circle cx="7" cy="16.5" r="2"/><circle cx="17" cy="16.5" r="2"/></svg></div>
+      <div class="body">
+        <span class="tagline">Híbrido</span>
+        <h3>Sierra HX Camioneta</h3>
+        <p class="price">$178.500.000</p>
+        <dl><dt>Consumo</dt><dd>21 km/gal</dd><dt>Garantía</dt><dd>5 años</dd><dt>Entrega</dt><dd>15 días</dd></dl>
+      </div>
+    </div>
+    <div class="car">
+      <div class="photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17v-4l2-5h14l2 5v4M2 17h20"/><path d="M7 8V6h10v2"/><circle cx="7" cy="17.5" r="2"/><circle cx="17" cy="17.5" r="2"/></svg></div>
+      <div class="body">
+        <span class="tagline">Gasolina</span>
+        <h3>Urbe 1.6 Hatchback</h3>
+        <p class="price">$78.400.000</p>
+        <dl><dt>Consumo</dt><dd>17 km/gal</dd><dt>Garantía</dt><dd>3 años</dd><dt>Entrega</dt><dd>Inmediata</dd></dl>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="servicios">
+  <div class="head">
+    <h2>Servicios</h2>
+    <p>Todo lo que necesitas después de la compra.</p>
+  </div>
+  <div class="cards">
+    <div class="svc">
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0 5 5L21 21H3l1.3-9.7a4 4 0 0 0 5-5z"/></svg></span>
+      <h3>Taller y mantenimiento</h3>
+      <p>Revisiones programadas con repuestos originales y garantía sobre la mano de obra.</p>
+    </div>
+    <div class="svc">
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 11h20M6 15h4"/></svg></span>
+      <h3>Financiación</h3>
+      <p>Planes hasta 72 meses con aprobación en línea y cuota inicial desde el 20%.</p>
+    </div>
+    <div class="svc">
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg></span>
+      <h3>Retoma de tu usado</h3>
+      <p>Avalúo sin costo y abono directo a la cuota inicial de tu carro nuevo.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="ayuda">
+  <div class="helper">
+    <h2>¿Necesitas ayuda?</h2>
+    <p>Abre el asistente en la esquina inferior derecha, o prueba una de estas consultas.</p>
+    <div class="qs" id="qs">
+      <button>¿Qué cubre la garantía del vehículo?</button>
+      <button>¿Cada cuánto debo hacer el mantenimiento?</button>
+      <button>¿Cómo funciona la financiación?</button>
+      <button>¿Cómo agendo una prueba de manejo?</button>
+    </div>
+    <p class="foot">
+      Si el asistente no encuentra la respuesta, abre el formulario de radicación
+      y la solicitud llega clasificada al panel de agentes.
+      Este sitio consume la API en <code>http://localhost:8081</code>.
     </p>
   </div>
-</main>
+</section>
 
+<footer>
+  <div class="grow">Velocidad Motors · Sitio de demostración del widget de PQRS</div>
+  <div>Medellín, Colombia</div>
+</footer>
+
+<script>
+  // Las sugerencias abren el widget y envían la consulta.
+  document.getElementById('qs').addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (!b || !window.PQRSWidget) return;
+
+    window.PQRSWidget.open();
+
+    setTimeout(function () {
+      var host = document.querySelector('[data-pqrs-widget]');
+      if (!host || !host.shadowRoot) return;
+
+      var input = host.shadowRoot.querySelector('.js-input');
+      var send = host.shadowRoot.querySelector('.js-send');
+      if (!input || !send) return;
+
+      input.value = b.textContent.trim();
+      send.click();
+    }, 350);
+  });
+</script>
 
 <script src="./pqrs-widget.js"
         data-tenant="demo"
         data-api="http://localhost:8081"
-        data-title="PQRS Assistant"
+        data-title="Asistente Velocidad"
         data-subtitle="En línea"
         data-brand="#321E48"
         data-accent="#65DCD5"></script>

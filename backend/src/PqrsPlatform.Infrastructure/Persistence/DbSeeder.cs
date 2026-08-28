@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PqrsPlatform.Application.Interfaces;
 using PqrsPlatform.Domain.Entities;
-using PqrsPlatform.Domain.Enums;
 
 namespace PqrsPlatform.Infrastructure.Persistence;
 
@@ -28,10 +27,10 @@ public static class DbSeeder
     {
         await db.Database.MigrateAsync(ct);
 
-        var demo = await EnsureTenantAsync(db, logger, DemoSlug, "Empresa Demo", LocalOrigins, ct);
+        var demo = await EnsureTenantAsync(db, logger, DemoSlug, "Velocidad Motors", LocalOrigins, ct);
 
-        // Segundo tenant: sirve para demostrar el aislamiento. Sus datos NO
-        // deben aparecer al consultar con el token del primero.
+        // Segundo tenant: existe para poder demostrar el aislamiento.
+        // Sus artículos y tickets no deben aparecer nunca al consultar como demo.
         var second = await EnsureTenantAsync(db, logger, SecondSlug, "MóvilNet Telecomunicaciones",
             new[] { "http://localhost:5501" }, ct);
 
@@ -40,22 +39,42 @@ public static class DbSeeder
 
         await EnsureArticlesAsync(db, embeddings, logger, demo, new[]
         {
+            ("Garantía del vehículo",
+             "La garantía cubre 5 años o 100.000 kilómetros, lo que ocurra primero, en vehículos " +
+             "eléctricos e híbridos, y 3 años en vehículos a gasolina. Cubre defectos de fábrica en " +
+             "motor, transmisión y sistema eléctrico. No cubre desgaste normal de llantas, pastillas " +
+             "de freno ni daños por mal uso."),
+
+            ("Mantenimiento programado",
+             "El primer mantenimiento se realiza a los 5.000 kilómetros y es gratuito. Después se " +
+             "programa cada 10.000 kilómetros o cada seis meses. Puedes agendar por la línea " +
+             "018000-123456 o desde este asistente."),
+
+            ("Financiación y crédito",
+             "Ofrecemos planes de financiación hasta 72 meses con cuota inicial desde el 20% del valor " +
+             "del vehículo. La aprobación se hace en línea en menos de 24 horas hábiles y requiere " +
+             "cédula, certificación laboral y extractos bancarios de los últimos tres meses."),
+
+            ("Prueba de manejo",
+             "Puedes agendar una prueba de manejo sin costo presentando licencia de conducción vigente. " +
+             "La prueba dura 30 minutos e incluye recorrido urbano. Se agenda con 24 horas de " +
+             "anticipación en la sede de Medellín."),
+
+            ("Retoma de vehículo usado",
+             "Recibimos tu vehículo usado como parte de pago. El avalúo es gratuito, toma alrededor de " +
+             "40 minutos e incluye revisión mecánica y de documentos. El valor aprobado se abona " +
+             "directamente a la cuota inicial."),
+
             ("Horario de atención",
-             "Nuestro horario de atención es de lunes a viernes de 8:00 a.m. a 6:00 p.m. y sábados de 8:00 a.m. a 12:00 m."),
-            ("Política de devoluciones",
-             "Puedes solicitar la devolución de un producto dentro de los 30 días siguientes a la compra, presentando la factura."),
-            ("Tiempos de respuesta de PQRS",
-             "Las peticiones y quejas se responden en un máximo de 15 días hábiles, según la normativa vigente."),
-            ("Cambio de fecha de pago",
-             "Puedes cambiar tu fecha de pago desde el portal, en Mi cuenta, Facturación, Fecha de corte. El cambio aplica al siguiente ciclo y solo puede hacerse una vez cada seis meses."),
-            ("Cómo reportar una falla del servicio",
-             "Reporta la falla por la línea 018000-123456 o desde este widget. Si compromete la vía pública se marca como prioridad alta y se atiende en menos de 4 horas.")
+             "Atendemos de lunes a viernes de 8:00 a.m. a 6:00 p.m. y sábados de 8:00 a.m. a 1:00 p.m. " +
+             "El taller cierra los domingos y festivos.")
         }, ct);
 
         await EnsureArticlesAsync(db, embeddings, logger, second, new[]
         {
             ("Portabilidad numérica",
-             "La portabilidad tarda entre 1 y 3 días hábiles. Debes estar a paz y salvo con tu operador actual.")
+             "La portabilidad tarda entre 1 y 3 días hábiles. Debes estar a paz y salvo con tu " +
+             "operador actual.")
         }, ct);
 
         await EnsureTicketsAsync(db, logger, demo, second, ct);
@@ -124,7 +143,7 @@ public static class DbSeeder
             catch (Exception ex)
             {
                 // El artículo se guarda igual, sin embedding. Se puede generar
-                // después con POST /api/v1/kb-articles/reindex.
+                // después desde el panel o volviendo a guardarlo.
                 logger.LogWarning(ex,
                     "No se pudo generar embedding para '{Title}'. El artículo queda sin indexar.", title);
             }
@@ -158,13 +177,15 @@ public static class DbSeeder
                 TicketNumber = "PQRS-2026-0001",
                 CustomerName = "Pedro Ramírez",
                 CustomerEmail = "pedro@example.com",
-                Subject = "Falla del servicio en la calle 45",
-                Description = "El servicio lleva dos días suspendido en todo el sector y nadie responde.",
-                Type = TicketType.Reclamo,
-                Priority = TicketPriority.Alta,
-                Sentiment = Sentiment.Negativo,
-                Status = TicketStatus.Pendiente,
-                Summary = "Servicio suspendido dos días en el sector, sin respuesta previa."
+                Subject = "Falla en el vehículo recién entregado",
+                Description = "El carro que recibí hace dos semanas presenta una falla en la transmisión. " +
+                              "Es la segunda vez que lo llevo al taller y nadie me responde. " +
+                              "Exijo una solución inmediata.",
+                Type = Domain.Enums.TicketType.Reclamo,
+                Priority = Domain.Enums.TicketPriority.Alta,
+                Sentiment = Domain.Enums.Sentiment.Negativo,
+                Status = Domain.Enums.TicketStatus.Pendiente,
+                Summary = "Falla de transmisión reincidente en vehículo nuevo, sin respuesta del taller."
             },
             new Ticket
             {
@@ -174,10 +195,10 @@ public static class DbSeeder
                 CustomerEmail = "marta@example.com",
                 Subject = "Consulta de planes de datos",
                 Description = "Quisiera conocer los planes de datos disponibles para este mes.",
-                Type = TicketType.Peticion,
-                Priority = TicketPriority.Baja,
-                Sentiment = Sentiment.Neutro,
-                Status = TicketStatus.Pendiente,
+                Type = Domain.Enums.TicketType.Peticion,
+                Priority = Domain.Enums.TicketPriority.Baja,
+                Sentiment = Domain.Enums.Sentiment.Neutro,
+                Status = Domain.Enums.TicketStatus.Pendiente,
                 Summary = "Solicita información sobre planes de datos vigentes."
             });
 
